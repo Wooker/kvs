@@ -1,4 +1,7 @@
-use clap::{App, Command, SubCommand, Arg};
+use std::env::current_dir;
+
+use clap::{Command, SubCommand, Arg};
+use kvs::{KvStore, Result, KvsError};
 
 fn cli() -> Command<'static> {
     Command::new(env!("CARGO_PKG_NAME"))
@@ -19,19 +22,31 @@ fn cli() -> Command<'static> {
         )
 }
 
-fn main() {
-    let mut kvs = kvs::KvStore::new();
-    kvs.set("a".to_string(), "b".to_string());
+fn main() -> Result<()>{
     let m = cli().get_matches();
 
     match m.subcommand() {
         Some(("set", sub_matches)) => {
-            kvs.set(sub_matches.get_one::<String>("KEY").unwrap().to_string(), sub_matches.get_one::<String>("VALUE").unwrap().to_string());
+            let mut kvs = KvStore::open(current_dir()?)?;
+
+            kvs.set(
+                sub_matches.get_one::<String>("KEY").unwrap().to_string(),
+                sub_matches.get_one::<String>("VALUE").unwrap().to_string()
+            )?;
         }
         Some(("get", sub_matches)) => {
-            let val = kvs.get(sub_matches.get_one::<String>("KEY").unwrap().to_string()).unwrap();
-            println!("{}", val);
+            let kvs = KvStore::open(current_dir()?)?;
+
+            let val = kvs.get(sub_matches.get_one::<String>("KEY").unwrap().to_string())?;
+            println!("{}", val.unwrap());
         }
-        _ => {}
+        Some(("rm", sub_matches)) => {
+            let mut kvs = KvStore::open(current_dir()?)?;
+
+            kvs.remove(sub_matches.get_one::<String>("KEY").unwrap().to_string())?;
+        }
+        _ => { return Err(KvsError::NoArgs); }
     }
+
+    Ok(())
 }
