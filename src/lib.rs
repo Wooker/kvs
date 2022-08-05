@@ -1,10 +1,10 @@
-use std::{collections::HashMap, path::{Path, PathBuf}, fs::{File, OpenOptions}, io::{BufReader, self, BufRead, Write, BufWriter}, env::current_dir};
-
+use std::{io, string::FromUtf8Error};
 use serde::{Serialize, Deserialize};
-use serde_json::json;
 
 pub mod server;
 pub mod client;
+pub mod engines;
+
 
 #[derive(Debug)]
 pub enum KvsError {
@@ -12,14 +12,28 @@ pub enum KvsError {
     SetError,
     RemoveError(String),
     NoArgs,
-    IoError,
+    IoError(String),
     SerdeError(String),
+    SledError(String),
+    Utf8Error(String),
     NotImplemented,
 }
 
+impl ToString for KvsError {
+    fn to_string(&self) -> String {
+        match self {
+            KvsError::IoError(e) => e.to_string(),
+            KvsError::SledError(e) => e.to_string(),
+            KvsError::SerdeError(e) => e.to_string(),
+            KvsError::Utf8Error(e) => e.to_string(),
+            _ => "Other".to_string()
+        }
+    }
+}
+
 impl From<io::Error> for KvsError {
-    fn from(_: io::Error) -> Self {
-        KvsError::IoError
+    fn from(e: io::Error) -> Self {
+        KvsError::IoError(e.to_string())
     }
 }
 
@@ -29,7 +43,19 @@ impl From<serde_json::Error> for KvsError {
     }
 }
 
-pub type Result<T> = std::result::Result<T, KvsError>;
+impl From<sled::Error> for KvsError {
+    fn from(e: sled::Error) -> Self {
+        KvsError::SledError(e.to_string())
+    }
+}
+
+impl From<FromUtf8Error> for KvsError {
+    fn from(e: FromUtf8Error) -> Self {
+        KvsError::Utf8Error(e.to_string())
+    }
+}
+
+pub type KvsResult<T> = std::result::Result<T, KvsError>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Command {
@@ -38,96 +64,28 @@ pub enum Command {
     Rm(String)
 }
 
-#[derive(Debug)]
-pub struct KvStore {
-    path: PathBuf,
-    map: HashMap<String, String>,
-    index: Option<PathBuf>,
+pub trait KvsEngine {
+    fn set(&mut self, key: String, val: String) -> KvsResult<()>;
+    fn get(&self, key: String) -> KvsResult<String>;
+    fn remove(&mut self, key: String) -> KvsResult<()>;
 }
 
-impl KvStore {
-    pub fn set(&mut self, key: String, val: String) -> Result<()> {
-        let mut f = OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(self.index.as_ref().unwrap())?;
-        writeln!(f, "{}", serde_json::to_value(Command::Set(key.clone(), val.clone()))?)?;
-
-        self.map.insert(key, val);
-        Ok(())
-    }
-
-    pub fn get(&self, key: String) -> Result<String> {
-        match self.map.get(&key).cloned() {
-            Some(val) => Ok(val),
-            None => Err(KvsError::NotFound) }
-    }
-
-    pub fn remove(&mut self, key: String) -> Result<()> {
-        let mut f = OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(self.index.as_ref().unwrap())?;
-        writeln!(f, "{}", serde_json::to_value(Command::Rm(key.clone()))?)?;
-
-        match self.map.remove(&key) {
-            Some(_) => Ok(()),
-            None => Err(KvsError::RemoveError("Key not found".to_string()))
-        }
-    }
-
-    pub fn open(path: impl Into<PathBuf>) -> Result<Self>
-    {
-        let mut path = PathBuf::from(path.into());
-        path.push("kvs-1.log");
-
-        let mut map = HashMap::<String, String>::new();
-
-        let f = File::open(path.clone())?;
-
-        let rdr = BufReader::new(f);
-        for l in rdr.lines() {
-            let val = serde_json::from_str(&l?)?;
-            let command: Command = serde_json::from_value(val)?;
-
-            match command {
-                Command::Set(key, val) => {
-                    map.insert(key, val);
-                }
-                Command::Rm(key) => {
-                    map.remove(&key);
-                }
-                _ => {}
-            }
-        }
-
-        let index = path.clone();
-
-        // Remove file name from path
-        path.pop();
-
-        Ok(KvStore {
-            map,
-            path,
-            index: Some(index),
-        })
-    }
-}
 
 #[cfg(test)]
 mod test {
-    use std::fs::File;
+    use std::{fs::File, env::current_dir};
 
     use tempfile::TempDir;
+
+    use crate::engines::kvstore::KvStore;
 
     #[test]
     fn open() {
         let tmp = TempDir::new().unwrap();
+        let curr = current_dir().unwrap();
 
-        let f = File::open(tmp).unwrap();
-        let f2 = File::open("/tmp/").unwrap();
-        dbg!(&f);
-        dbg!(&f2);
+        KvStore::open(curr).unwrap();
+        KvStore::open(tmp.path()).unwrap();
 
     }
 }

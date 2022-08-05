@@ -1,12 +1,12 @@
 use std::{net::{TcpListener, ToSocketAddrs}, io::{self, Read}, path::PathBuf};
 
-use crate::{Command, KvStore, KvsError};
+use crate::{KvsEngine, Command, engines::kvstore::KvStore, KvsError};
 
 #[derive(Debug)]
 pub enum ServerError {
     Bind,
     SerdeError(String),
-    KvsError,
+    KvsError(String),
     Other
 }
 
@@ -23,8 +23,8 @@ impl From<serde_json::Error> for ServerError {
 }
 
 impl From<KvsError> for ServerError {
-    fn from(_: KvsError) -> Self {
-        ServerError::KvsError
+    fn from(e: KvsError) -> Self {
+        ServerError::KvsError(e.to_string())
     }
 }
 

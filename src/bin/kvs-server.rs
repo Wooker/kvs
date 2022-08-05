@@ -6,7 +6,7 @@ fn main() -> ServerResult<()> {
     let localhost = Ipv4Addr::LOCALHOST;
     let socket = SocketAddrV4::new(localhost, 8080);
 
-    let mut server = KvsServer::new(socket, current_dir().unwrap()).expect("Could not start the server");
+    let mut server = KvsServer::new(socket, current_dir().unwrap())?;
 
     server.handle()?;
 
