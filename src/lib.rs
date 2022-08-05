@@ -3,11 +3,14 @@ use std::{collections::HashMap, path::{Path, PathBuf}, fs::{File, OpenOptions}, 
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 
+pub mod server;
+pub mod client;
+
 #[derive(Debug)]
 pub enum KvsError {
     NotFound,
     SetError,
-    RemoveError,
+    RemoveError(String),
     NoArgs,
     IoError,
     SerdeError(String),
@@ -37,18 +40,12 @@ pub enum Command {
 
 #[derive(Debug)]
 pub struct KvStore {
+    path: PathBuf,
     map: HashMap<String, String>,
     index: Option<PathBuf>,
 }
 
 impl KvStore {
-    pub fn new() -> Self {
-        KvStore {
-            map: HashMap::new(),
-            index: None
-        }
-    }
-
     pub fn set(&mut self, key: String, val: String) -> Result<()> {
         let mut f = OpenOptions::new()
             .write(true)
@@ -60,11 +57,10 @@ impl KvStore {
         Ok(())
     }
 
-    pub fn get(&self, key: String) -> Result<Option<String>> {
+    pub fn get(&self, key: String) -> Result<String> {
         match self.map.get(&key).cloned() {
-            Some(val) => Ok(Some(val)),
-            None => Err(KvsError::NotFound)
-        }
+            Some(val) => Ok(val),
+            None => Err(KvsError::NotFound) }
     }
 
     pub fn remove(&mut self, key: String) -> Result<()> {
@@ -76,7 +72,7 @@ impl KvStore {
 
         match self.map.remove(&key) {
             Some(_) => Ok(()),
-            None => Err(KvsError::SerdeError("Key not found".to_string()))
+            None => Err(KvsError::RemoveError("Key not found".to_string()))
         }
     }
 
@@ -85,32 +81,36 @@ impl KvStore {
         let mut path = PathBuf::from(path.into());
         path.push("kvs-1.log");
 
-        let mut kvs = KvStore::new();
-        kvs.index = Some(path.clone());
+        let mut map = HashMap::<String, String>::new();
 
-        if !path.is_file() {
-            Ok(kvs)
-        } else {
-            let f = File::open(path)?;
+        let f = File::open(path.clone())?;
 
-            let rdr = BufReader::new(f);
-            for l in rdr.lines() {
-                let val = serde_json::from_str(&l?)?;
-                let command: Command = serde_json::from_value(val)?;
+        let rdr = BufReader::new(f);
+        for l in rdr.lines() {
+            let val = serde_json::from_str(&l?)?;
+            let command: Command = serde_json::from_value(val)?;
 
-                match command {
-                    Command::Set(key, val) => {
-                        kvs.map.insert(key, val);
-                    }
-                    Command::Rm(key) => {
-                        kvs.map.remove(&key);
-                    }
-                    _ => {}
+            match command {
+                Command::Set(key, val) => {
+                    map.insert(key, val);
                 }
+                Command::Rm(key) => {
+                    map.remove(&key);
+                }
+                _ => {}
             }
-
-            Ok(kvs)
         }
+
+        let index = path.clone();
+
+        // Remove file name from path
+        path.pop();
+
+        Ok(KvStore {
+            map,
+            path,
+            index: Some(index),
+        })
     }
 }
 
