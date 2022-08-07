@@ -25,11 +25,13 @@ clap = "3.2.16"
 serde = { version = "1.0.141", features = ["derive"] }
 serde_json = "1.0.82"
 sled = "0.34.7"
-tempfile = "3.3.0"
-walkdir = "2.3.2"
 
 [dev-dependencies]
 assert_cmd = "2.0.4"
 predicates = "2.1.1"
 criterion = { version = "0.3.6", features = ["html_reports"] }
 rand = { version = "0.8.5", features = ["small_rng"] }
+tempfile = "3.3.0"
+walkdir = "2.3.2"
+panic-control = "0.1.4"
+crossbeam-utils = "0.6.5"

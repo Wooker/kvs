@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 pub mod server;
 pub mod client;
 pub mod engines;
+pub mod thread_pool;
 
 
 #[derive(Debug)]
@@ -62,12 +63,6 @@ pub enum Command {
     Set(String, String),
     Get(String),
     Rm(String)
-}
-
-pub trait KvsEngine {
-    fn set(&mut self, key: String, val: String) -> KvsResult<()>;
-    fn get(&self, key: String) -> KvsResult<String>;
-    fn remove(&mut self, key: String) -> KvsResult<()>;
 }
 
 

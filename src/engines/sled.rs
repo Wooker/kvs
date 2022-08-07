@@ -1,4 +1,4 @@
-use crate::{KvsEngine, KvsResult, KvsError};
+use crate::{engines::KvsEngine, KvsResult, KvsError};
 use sled::{Db, Tree};
 
 pub struct SledStore(Db);

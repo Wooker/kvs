@@ -1,9 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, fs::{File, OpenOptions}, io::{self, BufReader, BufRead, Write}};
-use crate::{KvsEngine, Command, KvsResult, KvsError};
+use std::{collections::HashMap, path::PathBuf, fs::OpenOptions, io::{BufReader, BufRead, Write}};
+use crate::{engines::KvsEngine, Command, KvsResult, KvsError};
 
 
 pub struct KvStore {
-    path: PathBuf,
     map: HashMap<String, String>,
     index: Option<PathBuf>,
 }
@@ -50,7 +49,6 @@ impl KvStore {
 
         Ok(KvStore {
             map,
-            path,
             index: Some(index),
         })
     }
