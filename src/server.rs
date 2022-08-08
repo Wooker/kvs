@@ -1,17 +1,25 @@
-use std::{net::{TcpListener, ToSocketAddrs}, io::{self, Read}, path::PathBuf};
+use std::{net::{TcpListener, ToSocketAddrs, TcpStream}, io::{self, Read, Write, BufWriter, BufReader}, path::PathBuf};
 
-use crate::{engines::KvsEngine, Command, engines::kvstore::KvStore, KvsError};
+use serde_json::Deserializer;
+
+use crate::{engines::KvsEngine, command::{Command, GetResponse, SetResponse, RmResponse}, engines::kvstore::KvStore, KvsError, thread_pool::ThreadPool};
 
 #[derive(Debug)]
 pub enum ServerError {
     Bind,
     SerdeError(String),
     KvsError(String),
-    Other
+    Other(String)
 }
 
 impl From<io::Error> for ServerError {
     fn from(_: io::Error) -> Self {
+        ServerError::Bind
+    }
+}
+
+impl From<&io::Error> for ServerError {
+    fn from(_: &io::Error) -> Self {
         ServerError::Bind
     }
 }
@@ -28,46 +36,91 @@ impl From<KvsError> for ServerError {
     }
 }
 
-pub type ServerResult<T> = Result<T, ServerError>;
-
-pub struct KvsServer {
-    listener: TcpListener,
-    store: KvStore,
+impl ToString for ServerError {
+    fn to_string(&self) -> String {
+        match self {
+            ServerError::KvsError(e) => format!("KvsError: {}", e.to_string()),
+            ServerError::SerdeError(e) => format!("SerdeError: {}", e.to_string()),
+            ServerError::Other(e) => format!("Other {}", e.to_string()),
+            ServerError::Bind => "Bind error".to_string()
+        }
+    }
 }
 
-impl KvsServer {
-    pub fn new(address: impl ToSocketAddrs, dir: impl Into<PathBuf>) -> ServerResult<Self> {
-        let listener = TcpListener::bind(address)?;
+pub type ServerResult<T> = Result<T, ServerError>;
 
-        Ok(KvsServer { listener, store: KvStore::open(dir)? })
+pub struct KvsServer<E: KvsEngine, P: ThreadPool> {
+    engine: E,
+    pool: P,
+}
+
+impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
+    pub fn new(engine: E, pool: P) -> ServerResult<Self> {
+        Ok(KvsServer {
+            engine,
+            pool,
+        })
     }
 
-    pub fn handle(&mut self) -> ServerResult<()>{
-        for stream in self.listener.incoming() {
-            let mut s = String::new();
-            let len = stream.unwrap().read_to_string(&mut s)?;
+    pub fn run(&mut self, address: impl ToSocketAddrs) -> ServerResult<()>{
+        let listener = TcpListener::bind(address)?;
 
-            if len != 0 {
-                let command = serde_json::from_str::<Command>(s.as_str())?;
-                match command {
-                    Command::Set(key, val) => {
-                        println!("Set {}: {}", key, val);
-                        self.store.set(key, val)?;
-                    }
-                    Command::Get(key) => {
-                        match self.store.get(key) {
-                            Ok(val) => println!("Get {:?}", val),
-                            Err(e) => println!("{:?}", e),
-                        }
-                    }
-                    Command::Rm(key) => {
-                        println!("Rm {}", key);
-                        self.store.remove(key)?;
+        for stream in listener.incoming() {
+            let engine = self.engine.clone();
+            self.pool.spawn(move || match stream {
+                Ok(stream) => {
+                    if let Err(e) = handle(engine, stream) {
+                        dbg!("Error");
                     }
                 }
-            }
+                Err(e) => { 
+                    dbg!("Error");
+                }
+            })
         }
 
         Ok(())
     }
+}
+
+fn handle<E: KvsEngine>(mut engine: E, stream: TcpStream) -> ServerResult<()>{
+    let reader = BufReader::new(&stream);
+    let mut writer = BufWriter::new(&stream);
+    let req_seq = Deserializer::from_reader(reader).into_iter::<Command>();
+
+    // Process the command
+    for req in req_seq {
+        let req = req?;
+
+        match req {
+            Command::Set{ key, val } => {
+                println!("Set {}: {}", key, val);
+                engine.set(key, val)?;
+
+                serde_json::to_writer(&mut writer, &SetResponse::Ok(()))?;
+                writer.flush()?;
+            }
+            Command::Get{ key } => {
+                match engine.get(key) {
+                    Ok(val) => {
+                        println!("Get {:?}", val);
+
+                        serde_json::to_writer(&mut writer, &GetResponse::Ok(val))?;
+                        writer.flush()?;
+                    },
+                    Err(e) => println!("{:?}", e),
+                }
+
+            }
+            Command::Rm{ key } => {
+                println!("Rm {}", key);
+                engine.remove(key)?;
+
+                serde_json::to_writer(&mut writer, &RmResponse::Ok(()))?;
+                writer.flush()?;
+            }
+        }
+    }
+
+    Ok(())
 }

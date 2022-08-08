@@ -1,6 +1,6 @@
 use std::{io, string::FromUtf8Error};
-use serde::{Serialize, Deserialize};
 
+pub mod command;
 pub mod server;
 pub mod client;
 pub mod engines;
@@ -58,17 +58,10 @@ impl From<FromUtf8Error> for KvsError {
 
 pub type KvsResult<T> = std::result::Result<T, KvsError>;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub enum Command {
-    Set(String, String),
-    Get(String),
-    Rm(String)
-}
-
 
 #[cfg(test)]
 mod test {
-    use std::{fs::File, env::current_dir};
+    use std::env::current_dir;
 
     use tempfile::TempDir;
 

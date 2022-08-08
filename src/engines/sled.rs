@@ -1,6 +1,7 @@
 use crate::{engines::KvsEngine, KvsResult, KvsError};
 use sled::{Db, Tree};
 
+#[derive(Clone)]
 pub struct SledStore(Db);
 
 impl SledStore {

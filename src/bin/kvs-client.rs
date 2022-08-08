@@ -1,7 +1,7 @@
 use std::net::{Ipv4Addr, SocketAddrV4};
 
 use clap::{Command, SubCommand, Arg};
-use kvs::{client::{KvsClient, ClientError, ClientResult}, Command as KvsCommand};
+use kvs::client::{KvsClient, ClientError, ClientResult};
 
 fn cli() -> Command<'static> {
     Command::new(env!("CARGO_PKG_NAME"))
@@ -31,28 +31,22 @@ fn main() -> ClientResult<()> {
     let m = cli().get_matches();
     match m.subcommand() {
         Some(("set", sub_matches)) => {
-            let command = KvsCommand::Set(
-                sub_matches.get_one::<String>("KEY").unwrap().to_string(),
-                sub_matches.get_one::<String>("VALUE").unwrap().to_string(),
-            );
+            let key = sub_matches.get_one::<String>("KEY").unwrap().to_string();
+            let val = sub_matches.get_one::<String>("VALUE").unwrap().to_string();
 
-            client.send_command(command).expect("Could not send command");
+            client.set(key, val)?;
             Ok(())
         }
         Some(("get", sub_matches)) => {
-            let command = KvsCommand::Get(
-                sub_matches.get_one::<String>("KEY").unwrap().to_string(),
-            );
+            let key = sub_matches.get_one::<String>("KEY").unwrap().to_string();
 
-            client.send_command(command).expect("Could not send command");
+            client.get(key)?;
             Ok(())
         }
         Some(("rm", sub_matches)) => {
-            let command = KvsCommand::Rm(
-                sub_matches.get_one::<String>("KEY").unwrap().to_string(),
-            );
+            let key = sub_matches.get_one::<String>("KEY").unwrap().to_string();
 
-            client.send_command(command).expect("Could not send command");
+            client.rm(key)?;
             Ok(())
         }
         _ => { return Err(ClientError::NoArgs); }

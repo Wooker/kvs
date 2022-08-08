@@ -1,7 +1,8 @@
 use std::{collections::HashMap, path::PathBuf, fs::OpenOptions, io::{BufReader, BufRead, Write}};
-use crate::{engines::KvsEngine, Command, KvsResult, KvsError};
+use crate::{engines::KvsEngine, command::Command, KvsResult, KvsError};
 
 
+#[derive(Clone)]
 pub struct KvStore {
     map: HashMap<String, String>,
     index: Option<PathBuf>,
@@ -32,10 +33,10 @@ impl KvStore {
             let command: Command = serde_json::from_value(val)?;
 
             match command {
-                Command::Set(key, val) => {
+                Command::Set{ key, val } => {
                     map.insert(key, val);
                 }
-                Command::Rm(key) => {
+                Command::Rm{ key } => {
                     map.remove(&key);
                 }
                 _ => {}
@@ -60,7 +61,7 @@ impl KvsEngine for KvStore {
             .write(true)
             .append(true)
             .open(self.index.as_ref().unwrap())?;
-        writeln!(f, "{}", serde_json::to_value(Command::Set(key.clone(), val.clone()))?)?;
+        writeln!(f, "{}", serde_json::to_value(Command::Set{ key: key.clone(), val: val.clone() })?)?;
 
         self.map.insert(key, val);
         Ok(())
@@ -77,7 +78,7 @@ impl KvsEngine for KvStore {
             .write(true)
             .append(true)
             .open(self.index.as_ref().unwrap())?;
-        writeln!(f, "{}", serde_json::to_value(Command::Rm(key.clone()))?)?;
+        writeln!(f, "{}", serde_json::to_value(Command::Rm{ key: key.clone() })?)?;
 
         match self.map.remove(&key) {
             Some(_) => Ok(()),
