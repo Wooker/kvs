@@ -40,7 +40,8 @@ fn main() -> ClientResult<()> {
         Some(("get", sub_matches)) => {
             let key = sub_matches.get_one::<String>("KEY").unwrap().to_string();
 
-            client.get(key)?;
+            let key = client.get(key)?;
+            println!("{}", key);
             Ok(())
         }
         Some(("rm", sub_matches)) => {
