@@ -70,7 +70,8 @@ impl KvsEngine for KvStore {
     fn get(&self, key: String) -> KvsResult<String> {
         match self.map.get(&key).cloned() {
             Some(val) => Ok(val),
-            None => Err(KvsError::NotFound) }
+            None => Err(KvsError::NotFound)
+        }
     }
 
     fn remove(&mut self, key: String) -> KvsResult<()> {

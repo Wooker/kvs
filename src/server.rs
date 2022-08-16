@@ -1,10 +1,11 @@
 use std::{net::{TcpListener, ToSocketAddrs, TcpStream}, io::{self, Read, Write, BufWriter, BufReader}, path::PathBuf};
 
+use serde::{Serialize, Deserialize};
 use serde_json::Deserializer;
 
 use crate::{engines::KvsEngine, command::{Command, GetResponse, SetResponse, RmResponse}, engines::kvstore::KvStore, KvsError, thread_pool::ThreadPool};
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ServerError {
     Bind,
     SerdeError(String),
@@ -107,8 +108,13 @@ fn handle<E: KvsEngine>(mut engine: E, stream: TcpStream) -> ServerResult<()>{
 
                         serde_json::to_writer(&mut writer, &GetResponse::Ok(val))?;
                         writer.flush()?;
-                    },
-                    Err(e) => println!("{:?}", e),
+                    }
+                    Err(e) => {
+                        println!("{:?}", e);
+
+                        serde_json::to_writer(&mut writer, &GetResponse::Err(String::from("Not found")))?;
+                        writer.flush()?;
+                    }
                 }
 
             }

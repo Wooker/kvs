@@ -8,6 +8,7 @@ use crate::command::{Command, GetResponse, SetResponse, RmResponse};
 pub enum ClientError {
     Bind,
     SerdeError(String),
+    NotFound,
     NoArgs
 }
 
@@ -60,7 +61,7 @@ impl KvsClient {
         let response = GetResponse::deserialize(&mut self.reader)?;
         match response {
             GetResponse::Ok(val) => Ok(val),
-            GetResponse::Err(e) => Err(ClientError::SerdeError(e.to_string()))
+            GetResponse::Err(e) => Err(ClientError::NotFound)
         }
     }
 
