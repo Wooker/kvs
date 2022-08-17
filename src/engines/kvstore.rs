@@ -1,11 +1,11 @@
-use std::{collections::HashMap, path::PathBuf, fs::OpenOptions, io::{BufReader, BufRead, Write}, sync::{Arc, Mutex}};
+use std::{collections::HashMap, path::PathBuf, fs::OpenOptions, io::{BufReader, BufRead, Write}, sync::{Arc, RwLock}};
 use crate::{engines::KvsEngine, command::Command, KvsResult, KvsError};
 
 #[derive(Clone)]
-pub struct KvStore(Arc<Mutex<MutexKvStore>>);
+pub struct KvStore(Arc<RwLock<RwLockKvStore>>);
 
 #[derive(Clone)]
-pub struct MutexKvStore {
+pub struct RwLockKvStore {
     map: HashMap<String, String>,
     path: PathBuf,
 }
@@ -50,7 +50,7 @@ impl KvStore {
         // Remove file name from path
         path.pop();
 
-        Ok(KvStore(Arc::new(Mutex::new(MutexKvStore {
+        Ok(KvStore(Arc::new(RwLock::new(RwLockKvStore {
             map,
             path: index,
         }))))
@@ -59,7 +59,7 @@ impl KvStore {
 
 impl KvsEngine for KvStore {
     fn set(&mut self, key: String, val: String) -> KvsResult<()> {
-        let mut kvstore = self.0.lock().unwrap();
+        let mut kvstore = self.0.write().unwrap();
         let mut f = OpenOptions::new()
             .write(true)
             .append(true)
@@ -71,7 +71,7 @@ impl KvsEngine for KvStore {
     }
 
     fn get(&self, key: String) -> KvsResult<String> {
-        let kvstore = self.0.lock().unwrap();
+        let kvstore = self.0.read().unwrap();
         match kvstore.map.get(&key).cloned() {
             Some(val) => Ok(val),
             None => Err(KvsError::NotFound)
@@ -79,7 +79,7 @@ impl KvsEngine for KvStore {
     }
 
     fn remove(&mut self, key: String) -> KvsResult<()> {
-        let mut kvstore = self.0.lock().unwrap();
+        let mut kvstore = self.0.write().unwrap();
         let mut f = OpenOptions::new()
             .write(true)
             .append(true)
