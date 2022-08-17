@@ -1,11 +1,13 @@
-use std::{collections::HashMap, path::PathBuf, fs::OpenOptions, io::{BufReader, BufRead, Write}};
+use std::{collections::HashMap, path::PathBuf, fs::OpenOptions, io::{BufReader, BufRead, Write}, sync::{Arc, Mutex}};
 use crate::{engines::KvsEngine, command::Command, KvsResult, KvsError};
 
+#[derive(Clone)]
+pub struct KvStore(Arc<Mutex<MutexKvStore>>);
 
 #[derive(Clone)]
-pub struct KvStore {
+pub struct MutexKvStore {
     map: HashMap<String, String>,
-    index: Option<PathBuf>,
+    path: PathBuf,
 }
 
 impl KvStore {
@@ -48,44 +50,45 @@ impl KvStore {
         // Remove file name from path
         path.pop();
 
-        Ok(KvStore {
+        Ok(KvStore(Arc::new(Mutex::new(MutexKvStore {
             map,
-            index: Some(index),
-        })
+            path: index,
+        }))))
     }
 }
 
 impl KvsEngine for KvStore {
     fn set(&mut self, key: String, val: String) -> KvsResult<()> {
+        let mut kvstore = self.0.lock().unwrap();
         let mut f = OpenOptions::new()
             .write(true)
             .append(true)
-            .open(self.index.as_ref().unwrap())?;
+            .open(&kvstore.path)?;
         writeln!(f, "{}", serde_json::to_value(Command::Set{ key: key.clone(), val: val.clone() })?)?;
 
-        self.map.insert(key, val);
+        kvstore.map.insert(key, val);
         Ok(())
     }
 
     fn get(&self, key: String) -> KvsResult<String> {
-        match self.map.get(&key).cloned() {
+        let kvstore = self.0.lock().unwrap();
+        match kvstore.map.get(&key).cloned() {
             Some(val) => Ok(val),
             None => Err(KvsError::NotFound)
         }
     }
 
     fn remove(&mut self, key: String) -> KvsResult<()> {
+        let mut kvstore = self.0.lock().unwrap();
         let mut f = OpenOptions::new()
             .write(true)
             .append(true)
-            .open(self.index.as_ref().unwrap())?;
+            .open(&kvstore.path)?;
         writeln!(f, "{}", serde_json::to_value(Command::Rm{ key: key.clone() })?)?;
 
-        match self.map.remove(&key) {
+        match kvstore.map.remove(&key) {
             Some(_) => Ok(()),
             None => Err(KvsError::RemoveError("Key not found".to_string()))
         }
     }
-
 }
-

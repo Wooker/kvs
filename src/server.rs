@@ -71,13 +71,13 @@ impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
             self.pool.spawn(move || match stream {
                 Ok(stream) => {
                     if let Err(e) = handle(engine, stream) {
-                        dbg!("Error");
+                        println!("Error: {}", e.to_string());
                     }
                 }
                 Err(e) => { 
-                    dbg!("Error");
+                    println!("Tcp error: {}", e.to_string());
                 }
-            })
+            });
         }
 
         Ok(())
