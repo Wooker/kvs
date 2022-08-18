@@ -80,6 +80,10 @@ impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
             });
         }
 
+        let s = &self.pool;
+        drop(s);
+        println!("Shutting down...");
+
         Ok(())
     }
 }
