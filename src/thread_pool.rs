@@ -1,4 +1,4 @@
-use std::{thread, sync::mpsc::{channel, Sender, Receiver}};
+use std::{thread, sync::mpsc::channel};
 use rayon::ThreadPoolBuilder;
 use crate::KvsResult;
 
@@ -21,38 +21,25 @@ impl ThreadPool for NaiveThreadPool {
     }
 }
 
-pub struct SharedQueueThreadPool {
-    tx: Sender<Box<dyn FnOnce() + Send + 'static>>,
-}
+pub struct SharedQueueThreadPool { }
 
 impl ThreadPool for SharedQueueThreadPool {
-    fn new(threads: u32) -> KvsResult<Self>
+    fn new(_threads: u32) -> KvsResult<Self>
     where Self: Sized {
-        let (tx, rx) = channel();
+        let (_tx, _rx) = channel::<()>();
         /*
         for _ in 0..threads {
             let rx = JobReceiver(rx.clone());
             thread::Builder::new().spawn(move || run_jobs(rx));
         }
         */
-        Ok(Self { tx })
+
+        Ok(Self {})
     }
 
     fn spawn<F>(&self, job: F)
-    where F: FnOnce() + Send + 'static { }
-}
-
-struct JobReceiver(Receiver<Box<dyn FnOnce() + Send + 'static>>);
-
-fn run_jobs(rx: JobReceiver) {
-    loop {
-        match rx.0.recv() {
-            Ok(job) => {
-                job();
-            }
-            Err(e) => {
-            },
-        }
+    where F: FnOnce() + Send + 'static {
+        thread::spawn(job);
     }
 }
 

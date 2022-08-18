@@ -61,7 +61,7 @@ impl KvsClient {
         let response = GetResponse::deserialize(&mut self.reader)?;
         match response {
             GetResponse::Ok(val) => Ok(val),
-            GetResponse::Err(e) => Err(ClientError::NotFound)
+            GetResponse::Err(_) => Err(ClientError::NotFound)
         }
     }
 

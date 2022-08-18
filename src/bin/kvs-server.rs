@@ -1,6 +1,6 @@
 use std::{net::{Ipv4Addr, SocketAddrV4}, env::current_dir};
 
-use kvs::{server::{KvsServer, ServerResult}, thread_pool::{ThreadPool, NaiveThreadPool, RayonThreadPool}, engines::kvstore::KvStore};
+use kvs::{server::{KvsServer, ServerResult}, thread_pool::{ThreadPool, RayonThreadPool}, engines::kvstore::KvStore};
 
 fn main() -> ServerResult<()> {
     let localhost = Ipv4Addr::LOCALHOST;
