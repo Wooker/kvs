@@ -1,5 +1,11 @@
 use crate::{thread_pool::ThreadPool, KvsResult};
-use std::{thread, sync::{mpsc::{channel, Sender, Receiver}, Arc, Mutex}};
+use std::{
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex,
+    },
+    thread,
+};
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -10,23 +16,28 @@ pub struct SharedQueueThreadPool {
 
 impl ThreadPool for SharedQueueThreadPool {
     fn new(threads: u32) -> KvsResult<Self>
-    where Self: Sized {
-        let mut workers: Vec::<Worker> = Vec::default();
+    where
+        Self: Sized,
+    {
+        let mut workers: Vec<Worker> = Vec::default();
         let (tx, rx) = channel::<Job>();
 
         let receiver = Arc::new(Mutex::new(rx));
-        for i in 0..threads {
-            workers.push(Worker::new(i.try_into().unwrap(), receiver.clone()));
+        for i in 0..threads as usize {
+            println!("New thread");
+            workers.push(Worker::new(i, receiver.clone()));
         }
 
         Ok(Self {
             sender: Some(tx),
-            workers
+            workers,
         })
     }
 
     fn spawn<F>(&self, job: F)
-    where F: FnOnce() + Send + 'static {
+    where
+        F: FnOnce() + Send + 'static,
+    {
         let job = Box::new(job);
         self.sender.as_ref().unwrap().send(job).unwrap();
     }
@@ -34,16 +45,19 @@ impl ThreadPool for SharedQueueThreadPool {
 
 impl Drop for SharedQueueThreadPool {
     fn drop(&mut self) {
+        // dbg!(&self.workers);
         for worker in &mut self.workers {
             if let Some(thread) = worker.thread.take() {
                 println!("Stopping thread");
-                thread.join().unwrap();
+                if !thread.is_finished() {
+                    println!("Not finished");
+                }
             }
         }
     }
 }
 
-
+#[derive(Debug)]
 struct Worker {
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
@@ -51,6 +65,7 @@ struct Worker {
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<Receiver<Job>>>) -> Self {
+        let count: i32 = 0;
         let thread = thread::spawn(move || loop {
             match receiver.lock().unwrap().recv() {
                 Ok(job) => {
@@ -64,6 +79,9 @@ impl Worker {
             }
         });
 
-        Self { id, thread: Some(thread) }
+        Self {
+            id,
+            thread: Some(thread),
+        }
     }
 }
