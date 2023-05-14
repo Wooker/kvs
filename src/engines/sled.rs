@@ -1,4 +1,4 @@
-use crate::{engines::KvsEngine, KvsResult, KvsError};
+use crate::{engines::KvsEngine, KvsError, KvsResult};
 use sled::{Db, Tree};
 
 #[derive(Clone)]
@@ -23,11 +23,11 @@ impl KvsEngine for SledStore {
         let tree: &Tree = &self.0;
 
         Ok(tree
-           .get(key)?
-           .map(|i_vec| AsRef::<[u8]>::as_ref(&i_vec).to_vec())
-           .map(String::from_utf8)
-           .transpose()?.expect("Is None")
-        )
+            .get(key)?
+            .map(|i_vec| AsRef::<[u8]>::as_ref(&i_vec).to_vec())
+            .map(String::from_utf8)
+            .transpose()?
+            .expect("Is None"))
     }
 
     fn remove(&mut self, key: String) -> KvsResult<()> {

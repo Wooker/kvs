@@ -5,12 +5,16 @@ pub struct NaiveThreadPool;
 
 impl ThreadPool for NaiveThreadPool {
     fn new(_: u32) -> KvsResult<Self>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         Ok(Self)
     }
 
     fn spawn<F>(&self, job: F)
-    where F: FnOnce() + Send + 'static {
+    where
+        F: FnOnce() + Send + 'static,
+    {
         thread::spawn(job);
     }
 }

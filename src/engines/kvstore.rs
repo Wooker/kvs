@@ -1,5 +1,11 @@
-use std::{collections::HashMap, path::PathBuf, fs::OpenOptions, io::{BufReader, BufRead, Write}, sync::{Arc, RwLock}};
-use crate::{engines::KvsEngine, command::Command, KvsResult, KvsError};
+use crate::{command::Command, engines::KvsEngine, KvsError, KvsResult};
+use std::{
+    collections::HashMap,
+    fs::OpenOptions,
+    io::{BufRead, BufReader, Write},
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Clone)]
 pub struct KvStore(Arc<RwLock<RwLockKvStore>>);
@@ -11,8 +17,7 @@ pub struct RwLockKvStore {
 }
 
 impl KvStore {
-    pub fn open(path: impl Into<PathBuf>) -> KvsResult<Self>
-    {
+    pub fn open(path: impl Into<PathBuf>) -> KvsResult<Self> {
         let mut path: PathBuf = path.into();
 
         if path.is_dir() {
@@ -28,17 +33,16 @@ impl KvStore {
             .create(true)
             .open(path.clone())?;
 
-
         let rdr = BufReader::new(f);
         for l in rdr.lines() {
             let val = serde_json::from_str(&l?)?;
             let command: Command = serde_json::from_value(val)?;
 
             match command {
-                Command::Set{ key, val } => {
+                Command::Set { key, val } => {
                     map.insert(key, val);
                 }
-                Command::Rm{ key } => {
+                Command::Rm { key } => {
                     map.remove(&key);
                 }
                 _ => {}
@@ -64,7 +68,14 @@ impl KvsEngine for KvStore {
             .write(true)
             .append(true)
             .open(&kvstore.path)?;
-        writeln!(f, "{}", serde_json::to_value(Command::Set{ key: key.clone(), val: val.clone() })?)?;
+        writeln!(
+            f,
+            "{}",
+            serde_json::to_value(Command::Set {
+                key: key.clone(),
+                val: val.clone()
+            })?
+        )?;
 
         kvstore.map.insert(key, val);
         Ok(())
@@ -74,7 +85,7 @@ impl KvsEngine for KvStore {
         let kvstore = self.0.read().unwrap();
         match kvstore.map.get(&key).cloned() {
             Some(val) => Ok(val),
-            None => Err(KvsError::NotFound)
+            None => Err(KvsError::NotFound),
         }
     }
 
@@ -84,11 +95,15 @@ impl KvsEngine for KvStore {
             .write(true)
             .append(true)
             .open(&kvstore.path)?;
-        writeln!(f, "{}", serde_json::to_value(Command::Rm{ key: key.clone() })?)?;
+        writeln!(
+            f,
+            "{}",
+            serde_json::to_value(Command::Rm { key: key.clone() })?
+        )?;
 
         match kvstore.map.remove(&key) {
             Some(_) => Ok(()),
-            None => Err(KvsError::RemoveError("Key not found".to_string()))
+            None => Err(KvsError::RemoveError("Key not found".to_string())),
         }
     }
 }

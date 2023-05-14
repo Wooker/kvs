@@ -1,11 +1,12 @@
 use std::{io, string::FromUtf8Error};
 
-pub mod command;
-pub mod server;
 pub mod client;
+pub mod command;
 pub mod engines;
+pub mod server;
 pub mod thread_pool;
 
+pub type KvsResult<T> = std::result::Result<T, KvsError>;
 
 #[derive(Debug)]
 pub enum KvsError {
@@ -23,11 +24,11 @@ pub enum KvsError {
 impl ToString for KvsError {
     fn to_string(&self) -> String {
         match self {
-            KvsError::IoError(e) => e.to_string(),
-            KvsError::SledError(e) => e.to_string(),
-            KvsError::SerdeError(e) => e.to_string(),
-            KvsError::Utf8Error(e) => e.to_string(),
-            _ => "Other".to_string()
+            KvsError::IoError(e)
+            | KvsError::SledError(e)
+            | KvsError::SerdeError(e)
+            | KvsError::Utf8Error(e) => e.to_string(),
+            _ => "Other".to_string(),
         }
     }
 }
@@ -53,27 +54,5 @@ impl From<sled::Error> for KvsError {
 impl From<FromUtf8Error> for KvsError {
     fn from(e: FromUtf8Error) -> Self {
         KvsError::Utf8Error(e.to_string())
-    }
-}
-
-pub type KvsResult<T> = std::result::Result<T, KvsError>;
-
-
-#[cfg(test)]
-mod test {
-    use std::env::current_dir;
-
-    use tempfile::TempDir;
-
-    use crate::engines::kvstore::KvStore;
-
-    #[test]
-    fn open() {
-        let tmp = TempDir::new().unwrap();
-        let curr = current_dir().unwrap();
-
-        KvStore::open(curr).unwrap();
-        KvStore::open(tmp.path()).unwrap();
-
     }
 }

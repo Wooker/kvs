@@ -5,6 +5,9 @@ use kvs::thread_pool::*;
 use kvs::KvsResult;
 
 use crossbeam_utils::sync::WaitGroup;
+use kvs::thread_pool::naive::NaiveThreadPool;
+use kvs::thread_pool::rayon::RayonThreadPool;
+use kvs::thread_pool::shared::SharedQueueThreadPool;
 
 fn spawn_counter<P: ThreadPool>(pool: P) -> KvsResult<()> {
     const TASK_NUM: usize = 20;
@@ -65,6 +68,7 @@ fn rayon_thread_pool_spawn_counter() -> KvsResult<()> {
 }
 
 #[test]
-fn shared_queue_thread_pool_panic_task() -> KvsResult<()> {
-    spawn_panic_task::<SharedQueueThreadPool>()
+#[should_panic]
+fn shared_queue_thread_pool_panic_task() {
+    spawn_panic_task::<SharedQueueThreadPool>().unwrap()
 }

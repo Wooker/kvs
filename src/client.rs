@@ -1,15 +1,18 @@
-use std::{io::{self, Write, BufWriter, BufReader}, net::{TcpStream, ToSocketAddrs}};
 use serde::Deserialize;
 use serde_json::de::{Deserializer, IoRead};
+use std::{
+    io::{self, BufReader, BufWriter, Write},
+    net::{TcpStream, ToSocketAddrs},
+};
 
-use crate::command::{Command, GetResponse, SetResponse, RmResponse};
+use crate::command::{Command, GetResponse, RmResponse, SetResponse};
 
 #[derive(Debug)]
 pub enum ClientError {
     Bind,
     SerdeError(String),
     NotFound,
-    NoArgs
+    NoArgs,
 }
 
 impl From<io::Error> for ClientError {
@@ -28,7 +31,7 @@ pub type ClientResult<T> = Result<T, ClientError>;
 
 pub struct KvsClient {
     reader: Deserializer<IoRead<BufReader<TcpStream>>>,
-    writer: BufWriter<TcpStream>
+    writer: BufWriter<TcpStream>,
 }
 
 impl KvsClient {
@@ -36,10 +39,9 @@ impl KvsClient {
         let tcp_reader = TcpStream::connect(address)?;
         let tcp_writer = tcp_reader.try_clone()?;
 
-
         Ok(KvsClient {
             reader: Deserializer::new(IoRead::new(BufReader::new(tcp_reader))),
-            writer: BufWriter::new(tcp_writer)
+            writer: BufWriter::new(tcp_writer),
         })
     }
 
@@ -50,7 +52,7 @@ impl KvsClient {
         let response = SetResponse::deserialize(&mut self.reader)?;
         match response {
             SetResponse::Ok(_) => Ok(()),
-            SetResponse::Err(e) => Err(ClientError::SerdeError(e.to_string()))
+            SetResponse::Err(e) => Err(ClientError::SerdeError(e.to_string())),
         }
     }
 
@@ -61,7 +63,7 @@ impl KvsClient {
         let response = GetResponse::deserialize(&mut self.reader)?;
         match response {
             GetResponse::Ok(val) => Ok(val),
-            GetResponse::Err(_) => Err(ClientError::NotFound)
+            GetResponse::Err(_) => Err(ClientError::NotFound),
         }
     }
 
@@ -72,7 +74,7 @@ impl KvsClient {
         let response = RmResponse::deserialize(&mut self.reader)?;
         match response {
             RmResponse::Ok(_) => Ok(()),
-            RmResponse::Err(e) => Err(ClientError::SerdeError(e.to_string()))
+            RmResponse::Err(e) => Err(ClientError::SerdeError(e.to_string())),
         }
     }
 }

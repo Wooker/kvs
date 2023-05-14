@@ -1,16 +1,24 @@
-use std::{net::{TcpListener, ToSocketAddrs, TcpStream}, io::{self, Write, BufWriter, BufReader}};
+use std::{
+    io::{self, BufReader, BufWriter, Write},
+    net::{TcpListener, TcpStream, ToSocketAddrs},
+};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Deserializer;
 
-use crate::{engines::KvsEngine, command::{Command, GetResponse, SetResponse, RmResponse}, KvsError, thread_pool::ThreadPool};
+use crate::{
+    command::{Command, GetResponse, RmResponse, SetResponse},
+    engines::KvsEngine,
+    thread_pool::ThreadPool,
+    KvsError,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ServerError {
     Bind,
     SerdeError(String),
     KvsError(String),
-    Other(String)
+    Other(String),
 }
 
 impl From<io::Error> for ServerError {
@@ -43,7 +51,7 @@ impl ToString for ServerError {
             ServerError::KvsError(e) => format!("KvsError: {}", e.to_string()),
             ServerError::SerdeError(e) => format!("SerdeError: {}", e.to_string()),
             ServerError::Other(e) => format!("Other {}", e.to_string()),
-            ServerError::Bind => "Bind error".to_string()
+            ServerError::Bind => "Bind error".to_string(),
         }
     }
 }
@@ -57,13 +65,10 @@ pub struct KvsServer<E: KvsEngine, P: ThreadPool> {
 
 impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
     pub fn new(engine: E, pool: P) -> ServerResult<Self> {
-        Ok(KvsServer {
-            engine,
-            pool,
-        })
+        Ok(KvsServer { engine, pool })
     }
 
-    pub fn run(&mut self, address: impl ToSocketAddrs) -> ServerResult<()>{
+    pub fn run(&mut self, address: impl ToSocketAddrs) -> ServerResult<()> {
         let listener = TcpListener::bind(address)?;
 
         for stream in listener.incoming() {
@@ -74,7 +79,7 @@ impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
                         println!("Error: {}", e.to_string());
                     }
                 }
-                Err(e) => { 
+                Err(e) => {
                     println!("Tcp error: {}", e.to_string());
                 }
             });
@@ -88,7 +93,7 @@ impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
     }
 }
 
-fn handle<E: KvsEngine>(mut engine: E, stream: TcpStream) -> ServerResult<()>{
+fn handle<E: KvsEngine>(mut engine: E, stream: TcpStream) -> ServerResult<()> {
     let reader = BufReader::new(&stream);
     let mut writer = BufWriter::new(&stream);
     let req_seq = Deserializer::from_reader(reader).into_iter::<Command>();
@@ -98,31 +103,31 @@ fn handle<E: KvsEngine>(mut engine: E, stream: TcpStream) -> ServerResult<()>{
         let req = req?;
 
         match req {
-            Command::Set{ key, val } => {
+            Command::Set { key, val } => {
                 println!("Set {}: {}", key, val);
                 engine.set(key, val)?;
 
                 serde_json::to_writer(&mut writer, &SetResponse::Ok(()))?;
                 writer.flush()?;
             }
-            Command::Get{ key } => {
-                match engine.get(key) {
-                    Ok(val) => {
-                        println!("Get {:?}", val);
+            Command::Get { key } => match engine.get(key) {
+                Ok(val) => {
+                    println!("Get {:?}", val);
 
-                        serde_json::to_writer(&mut writer, &GetResponse::Ok(val))?;
-                        writer.flush()?;
-                    }
-                    Err(e) => {
-                        println!("{:?}", e);
-
-                        serde_json::to_writer(&mut writer, &GetResponse::Err(String::from("Not found")))?;
-                        writer.flush()?;
-                    }
+                    serde_json::to_writer(&mut writer, &GetResponse::Ok(val))?;
+                    writer.flush()?;
                 }
+                Err(e) => {
+                    println!("{:?}", e);
 
-            }
-            Command::Rm{ key } => {
+                    serde_json::to_writer(
+                        &mut writer,
+                        &GetResponse::Err(String::from("Not found")),
+                    )?;
+                    writer.flush()?;
+                }
+            },
+            Command::Rm { key } => {
                 println!("Rm {}", key);
                 engine.remove(key)?;
 
