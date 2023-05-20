@@ -31,9 +31,10 @@ fn cli() -> Command<'static> {
 
 fn main() -> ClientResult<()> {
     let localhost = Ipv4Addr::LOCALHOST;
+    let plover = Ipv4Addr::new(90, 156, 230, 97);
     let socket = SocketAddrV4::new(localhost, 8080);
 
-    let mut client = KvsClient::new(socket).expect("Could not connect to socket");
+    let mut client = KvsClient::new(socket)?;
 
     let m = cli().get_matches();
     match m.subcommand() {
@@ -57,8 +58,12 @@ fn main() -> ClientResult<()> {
             client.rm(key)?;
             Ok(())
         }
+        None => {
+            cli().print_help()?;
+            Ok(())
+        }
         _ => {
-            return Err(ClientError::NoArgs);
+            return Err(ClientError::WrongArgs);
         }
     }
 }

@@ -65,7 +65,6 @@ struct Worker {
 
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<Receiver<Job>>>) -> Self {
-        let count: i32 = 0;
         let thread = thread::spawn(move || loop {
             match receiver.lock().unwrap().recv() {
                 Ok(job) => {

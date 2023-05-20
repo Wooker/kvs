@@ -12,7 +12,7 @@ pub enum ClientError {
     Bind,
     SerdeError(String),
     NotFound,
-    NoArgs,
+    WrongArgs,
 }
 
 impl From<io::Error> for ClientError {
