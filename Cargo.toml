@@ -16,11 +16,17 @@ name = "kvs-client"
 test = false
 bench = false
 
+[[bin]]
+name = "tcp-test"
+test = false
+bench = false
+
 [[bench]]
 name = "bench"
 harness = false
 
 [dependencies]
+anyhow = "1.0.71"
 clap = { version = "4.3.0", features = ["derive", "cargo"] }
 rayon = "1.5.3"
 serde = { version = "1.0.141", features = ["derive"] }
