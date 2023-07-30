@@ -8,9 +8,24 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[derive(Debug, Parser)]
+#[command(author, version, about, long_about= None)]
+struct Cli {
+    #[arg(short, long)]
+    port: Option<u16>,
+    #[arg(long)]
+    peers_file: Option<PathBuf>, //Vec<SocketAddrV4>>,
+}
+
 use anyhow::Result;
+use clap::Parser;
+use kvs::command;
 fn main() -> Result<()> {
-    let listener = TcpListener::bind(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 8000))?;
+    let cli = Cli::parse();
+    dbg!(&cli);
+
+    let port = cli.port.or(Some(8080)).unwrap();
+    let listener = TcpListener::bind(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port))?;
     // listener
     //     .set_nonblocking(true)
     //     .expect("Cannot set non-blocking");
@@ -20,14 +35,23 @@ fn main() -> Result<()> {
 
     let peers: Vec<SocketAddr> = contents
         .lines()
-        .map(|addr| addr.parse::<SocketAddr>().unwrap())
+        .map(|addr| addr.parse::<SocketAddr>().expect("Invalid socket address"))
+        // .map(|addr| TcpStream::connect(addr.parse::<SocketAddr>().unwrap()).unwrap())
         .collect();
+    dbg!(&peers);
 
     thread::scope(|s| {
         s.spawn(move || loop {
             for peer in peers.iter() {
-                let mut stream = TcpStream::connect(peer).unwrap();
-                writeln!(stream, "Hello").unwrap();
+                if peer.port() == port {
+                    continue;
+                }
+                if let Ok(mut stream) = TcpStream::connect(peer) {
+                    writeln!(stream, "Hello").unwrap();
+                }
+
+                // writeln!(peer, "Hello").unwrap();
+                println!("Wrote");
             }
 
             thread::sleep(Duration::from_secs(1));

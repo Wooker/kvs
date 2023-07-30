@@ -3,6 +3,7 @@ use std::{io, string::FromUtf8Error};
 pub mod client;
 pub mod command;
 pub mod engines;
+pub mod raft;
 pub mod server;
 pub mod thread_pool;
 

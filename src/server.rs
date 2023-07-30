@@ -1,6 +1,6 @@
 use std::{
-    io::{self, BufReader, BufWriter, Write},
-    net::{TcpListener, TcpStream, ToSocketAddrs},
+    io::{self, BufReader, BufWriter, Read, Write},
+    net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream, ToSocketAddrs},
 };
 
 use serde::{Deserialize, Serialize};
@@ -69,7 +69,10 @@ impl<E: KvsEngine, P: ThreadPool> KvsServer<E, P> {
     }
 
     pub fn run(&mut self, address: impl ToSocketAddrs) -> ServerResult<()> {
-        let listener = TcpListener::bind(address)?;
+        let listener = TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 8000))?;
+        let stream = TcpStream::connect(address)?;
+
+        // stream.read();
 
         for stream in listener.incoming() {
             let engine = self.engine.clone();

@@ -1,6 +1,7 @@
 use std::{
     env::current_dir,
     net::{Ipv4Addr, SocketAddrV4},
+    path::PathBuf,
 };
 
 use clap::{Parser, Subcommand};
@@ -10,21 +11,26 @@ use kvs::{
     thread_pool::{shared::SharedQueueThreadPool, ThreadPool},
 };
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about= None)]
 struct ServerCli {
     #[arg(short, long)]
     address: Option<Ipv4Addr>,
     #[arg(short, long)]
     port: Option<u16>,
+    #[arg(long)]
+    peers_file: Option<PathBuf>, //Vec<SocketAddrV4>>,
 }
 
 fn main() -> ServerResult<()> {
     let cli = ServerCli::parse();
+    dbg!(&cli);
 
     let address = cli.address.unwrap_or(Ipv4Addr::LOCALHOST);
     let port = cli.port.unwrap_or(8000);
+
     let socket = SocketAddrV4::new(address, port);
+    dbg!(&socket);
 
     //let pool = NaiveThreadPool::new(4)?;
     let pool = SharedQueueThreadPool::new(4).unwrap();
